@@ -15,23 +15,21 @@ from starlette.responses import Response, JSONResponse
 from starlette.requests import Request
 
 from fastapi.encoders import jsonable_encoder
-
+import uvicorn
 
 from email_validator import validate_email, EmailNotValidError
 from uuid import uuid4
 from datetime import datetime
 import bcrypt
 
-
-
 load_dotenv()
 
 db_hostname=os.environ['HOST']
-db_port=int(os.environ['PORT'])
+db_port=int(os.environ['DB_PORT'])
 db_user=os.environ['USER']
 db_pass=os.environ['PASSWORD']
 db_name = "accounts"
-
+PORT = int(os.environ['PORT'])
 engine = sqlalchemy.create_engine(
     sqlalchemy.engine.url.URL(
         drivername="mysql+pymysql",
@@ -223,3 +221,7 @@ def create_Participant(participant: Participant):
     with engine.connect() as connection:
         result = connection.execute(query,{"first_name": participant.first_name, "last_name": participant.last_name, "email": participant.email, "password": encrypted_password})
         return 'success'
+
+
+if __name__ == '__main__':
+    uvicorn.run('main:app', host="0.0.0.0", port=PORT, reload=True, debug=True)
