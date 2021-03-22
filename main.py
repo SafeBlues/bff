@@ -28,7 +28,7 @@ db_hostname=os.environ['HOST']
 db_port=int(os.environ['DB_PORT'])
 db_user=os.environ['USER']
 db_pass=os.environ['PASSWORD']
-db_name = "accounts"
+db_name = os.environ['DB_NAME']
 PORT = int(os.environ['PORT'])
 engine = sqlalchemy.create_engine(
     sqlalchemy.engine.url.URL(
