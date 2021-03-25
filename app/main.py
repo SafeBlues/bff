@@ -60,7 +60,7 @@ origins = [
     # "https://frontend:3000",
 ]
 
-app = FastAPI()
+app = FastAPI(title="Safe Blues Backend for frontend")
 
 app.add_middleware(
     CORSMiddleware,
