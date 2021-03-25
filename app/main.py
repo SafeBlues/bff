@@ -23,7 +23,7 @@ from uuid import uuid4
 from datetime import datetime
 import bcrypt
 
-load_dotenv()
+# load_dotenv()
 
 db_hostname = os.environ['HOST']
 db_port = int(os.environ['DB_PORT'])
