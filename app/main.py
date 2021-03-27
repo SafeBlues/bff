@@ -246,14 +246,26 @@ def create_Participant(participant: Participant):
         return 'success'
 
 
+def check_if_participant_id_exists(participant_id):
+    with engine.connect() as connection:
+        query = """SELECT COUNT(1)
+                FROM participants
+                WHERE participant_id = %(participant_id)s;"""
+        result = connection.execute(
+            query, {"participant_id": participant_id})
+        participant_exists = bool(result.fetchone()["COUNT(1)"])
+        return participant_exists
+
+
 class Participant2(BaseModel):
     email: EmailStr
     participant_id: int
 
+
 @app.post('/v2/participants')
 def create_Participant2(participant: Participant2):
     if len(str(participant.participant_id)) != 10:
-        detail = [ # recreating fastAPI typing error for custom error
+        detail = [  # recreating fastAPI typing error for custom error
             {
                 "loc": [
                     "body",
@@ -264,16 +276,31 @@ def create_Participant2(participant: Participant2):
             }
         ]
         raise HTTPException(status_code=422, detail=detail)
-    query = "INSERT INTO participants (email, participant_id) " \
-            'VALUES (%(email)s, %(participant_id)s);'
-    with engine.connect() as connection:
-        result = connection.execute(
-            query, {"email": participant.email, "participant_id": participant.participant_id})
-        # TODO check for success
-        # TODO set a uuid for the user at the same time
-        return {"status": 200}
-        # TODO validate that the participant id actually exists
-        # TODO return a setcookie with a uuid for sign in
+
+    if not check_if_participant_id_exists(participant.participant_id):
+        with engine.connect() as connection:
+            query = "INSERT INTO participants (email, participant_id) " \
+                    'VALUES (%(email)s, %(participant_id)s);'
+            result = connection.execute(
+                query, {"email": participant.email, "participant_id": participant.participant_id})
+            # TODO check if the participant id already exists
+            # TODO check for success
+            # TODO set a uuid for the user at the same time
+            return {"status": 200}
+            # TODO validate that the participant id actually exists
+            # TODO return a setcookie with a uuid for sign in
+    else:
+        detail = [  # recreating fastAPI typing error for custom error
+            {
+                "loc": [
+                    "body",
+                    "participant_id"
+                ],
+                "msg": "participant_id is already linked to an email",
+                "type": "value_error.participant_id"
+            }
+        ]
+        raise HTTPException(status_code=422, detail=detail)
 
 
 if __name__ == '__main__':
