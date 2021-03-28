@@ -55,6 +55,7 @@ origins = [
     "http://127.0.0.1:*",
     "http://127.0.0.1:3000",
     "https://127.0.0.1:*",
+    "http://130.216.216.231:3000",
     # "frontend:3000",
     # "http://frontend:3000",
     # "https://frontend:3000",
