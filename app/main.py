@@ -56,11 +56,7 @@ origins = [
     "http://127.0.0.1:3000",
     "https://127.0.0.1:*",
     "http://130.216.216.231:3000",
-<<<<<<< Updated upstream
     "http://participant.safeblues.org:3000",
-=======
-    "http://participant.safeblues.org/"
->>>>>>> Stashed changes
     # "frontend:3000",
     # "http://frontend:3000",
     # "https://frontend:3000",
