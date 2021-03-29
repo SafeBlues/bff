@@ -260,12 +260,12 @@ def check_if_participant_id_exists(participant_id):
 
 class Participant2(BaseModel):
     email: EmailStr
-    participant_id: int
+    participant_id: str
 
 
 @app.post('/v2/participants')
 def create_Participant2(participant: Participant2):
-    if len(str(participant.participant_id)) != 10:
+    if len(participant.participant_id) != 10:
         detail = [  # recreating fastAPI typing error for custom error
             {
                 "loc": [
