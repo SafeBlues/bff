@@ -57,6 +57,8 @@ origins = [
     "https://127.0.0.1:*",
     "http://130.216.216.231:3000",
     "http://participant.safeblues.org:3000",
+    "http://participant.safeblues.org",
+    "https://participant.safeblues.org",
     # "frontend:3000",
     # "http://frontend:3000",
     # "https://frontend:3000",
