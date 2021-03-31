@@ -307,5 +307,25 @@ def create_Participant2(participant: Participant2):
         raise HTTPException(status_code=422, detail=detail)
 
 
+class ExperimentData(BaseModel):
+    participant_id: str
+    statuses: list
+
+
+@app.post('/push_experiment_data')
+def push_experiment_data(data: ExperimentData):
+    # TODO save this data somewhere
+    time = str(datetime.now())
+    # return data.statuses[0]["status_id"]
+    with engine.connect() as connection:
+        for status in data.statuses:
+
+            query = "INSERT INTO experiment_data (participant_id, status_id, date, truncated_entry_time, duration, count_active) " \
+                    'VALUES (%(participant_id)s, %(status_id)s, %(date)s, %(truncated_entry_time)s, %(duration)s, %(count_active)s);'
+            result = connection.execute(
+                query, {"participant_id": data.participant_id, "status_id": status["status_id"], "date": time, "truncated_entry_time": status["truncated_entry_time"], "duration": status["duration"], "count_active": status["count_active"]})
+            return {"status": 200}
+
+
 if __name__ == '__main__':
     uvicorn.run('main:app', host="0.0.0.0", port=PORT, reload=True, debug=True)
