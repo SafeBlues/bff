@@ -314,17 +314,35 @@ class ExperimentData(BaseModel):
 
 @app.post('/push_experiment_data')
 def push_experiment_data(data: ExperimentData):
-    # TODO save this data somewhere
+    """
+    this endpoint will take the data pushed from the aws app and the mobile apps
+    and store it in the database/pms. 
+    """
     time = str(datetime.now())
-    # return data.statuses[0]["status_id"]
     with engine.connect() as connection:
         for status in data.statuses:
-
             query = "INSERT INTO experiment_data (participant_id, status_id, date, truncated_entry_time, duration, count_active) " \
                     'VALUES (%(participant_id)s, %(status_id)s, %(date)s, %(truncated_entry_time)s, %(duration)s, %(count_active)s);'
             result = connection.execute(
                 query, {"participant_id": data.participant_id, "status_id": status["status_id"], "date": time, "truncated_entry_time": status["truncated_entry_time"], "duration": status["duration"], "count_active": status["count_active"]})
-            return {"status": 200}
+        return {"status": 200}
+
+
+@app.get("/api/stats/{participant_id}")
+def get_stats_for_participant(participant_id: str) -> dict:
+    """
+    returns the total number of hours that a participant has spent on campus
+    """
+    with engine.connect() as connection:
+        query = """SELECT SUM(duration) as total_time_on_campus from experiment_data
+                    where participant_id = %(participant_id)s
+                    """
+        result = connection.execute(query, {"participant_id": participant_id})
+        duration_ms = result.fetchone()["total_time_on_campus"]
+        hours_on_campus = round(duration_ms/3600000, 4)
+        payload = {"participant_id": participant_id,
+                   "total_hours_on_campus": hours_on_campus}
+        return payload
 
 
 if __name__ == '__main__':
