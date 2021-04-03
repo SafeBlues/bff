@@ -22,6 +22,10 @@ from email_validator import validate_email, EmailNotValidError
 from uuid import uuid4
 from datetime import datetime
 import bcrypt
+import numpy as np
+import logging
+
+logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 # load_dotenv()
 
@@ -333,16 +337,74 @@ def get_stats_for_participant(participant_id: str) -> dict:
     """
     returns the total number of hours that a participant has spent on campus
     """
+    # TODO add a catch for when the participant_id does not exist
+    # - consider making this a funcion all on its own?
     with engine.connect() as connection:
         query = """SELECT SUM(duration) as total_time_on_campus from experiment_data
                     where participant_id = %(participant_id)s
                     """
         result = connection.execute(query, {"participant_id": participant_id})
         duration_ms = result.fetchone()["total_time_on_campus"]
-        hours_on_campus = round(duration_ms/3600000, 4)
+        hours_on_campus = round(duration_ms/3600000, 1)
         payload = {"participant_id": participant_id,
                    "total_hours_on_campus": hours_on_campus}
         return payload
+
+# TODO add caching to this function, wit daily ttl
+@app.get("/api/stats")
+def get_aggregate_statistics():
+    """
+    Should be consumed by the https://participant.safeblues.org/stats page only.
+
+    this endpoint should return a list of every participants total number of
+    hours on campus, but should not list any identifying information.
+    should simple return {"total_hours_list": [12, 14, 1, 5 ... ]}.
+
+    This data should be used for generating the plots for showing the
+    distribution of students campus hours.
+    TODO add caching to this function, so that it only gets generated once a day
+    or so, so that we done have a heavy aggregate operation run everytime
+    someone loads up their stats.
+    """
+    with engine.connect() as connection:
+        query = """SELECT SUM(duration)
+                    FROM experiment_data
+                    GROUP BY participant_id;"""
+        result = connection.execute(query)
+        hours_on_campus_list = [float(round(duration_ms[0]/3600000, 1)) for duration_ms in result.fetchall()]
+        logging.info(hours_on_campus_list)
+        # payload = {"hours_on_campus_list": hours_on_campus_list}
+        # hours_on_campus = [6, 31.8, 9.2, 4.6]
+        hist, bin_edges = np.histogram(hours_on_campus_list, bins=15)
+        # payload = {"hist": hist, "bin_edges": bin_edges}
+        hist = [round(i, 2) for i in hist.tolist()]
+        bin_edges = [round(i, 2) for i in bin_edges.tolist()]
+        payload = {"hist": hist, "bin_edges": bin_edges}
+        return payload
+        # return {"hist": hours_on_campus_list}
+@app.get("/api/rawstats")
+def get_aggregate_statistics():
+    """
+    Should be consumed by the https://participant.safeblues.org/stats page only.
+
+    this endpoint should return a list of every participants total number of
+    hours on campus, but should not list any identifying information.
+    should simple return {"total_hours_list": [12, 14, 1, 5 ... ]}.
+
+    This data should be used for generating the plots for showing the
+    distribution of students campus hours.
+    TODO add caching to this function, so that it only gets generated once a day
+    or so, so that we done have a heavy aggregate operation run everytime
+    someone loads up their stats.
+    """
+    with engine.connect() as connection:
+        query = """SELECT SUM(duration)
+                    FROM experiment_data
+                    GROUP BY participant_id;"""
+        result = connection.execute(query)
+        hours_on_campus_list = [float(round(duration_ms[0]/3600000, 1)) for duration_ms in result.fetchall()]
+        return {"hours_on_campus_list": hours_on_campus_list}
+        # return {"hist": hours_on_campus_list}
 
 
 if __name__ == '__main__':
