@@ -77,7 +77,11 @@ def signin(payload: SignInPayload):
     query = 'SELECT id, password FROM participants WHERE email=%(email)s'
     with engine.connect() as connection:
         result = connection.execute(query, {'email': payload.email})
-        user_id, user_password = result.fetchone()
+        vals = result.fetchone()
+        logging.info(f"fetched values: {vals}")
+        if vals == None:
+            return("Email does not exist")
+        user_id, user_password = vals
         if bcrypt.checkpw(payload.password.encode(), user_password.encode('utf-8')):
             # happy path
             time = str(datetime.now())
