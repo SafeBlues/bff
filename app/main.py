@@ -49,23 +49,12 @@ engine = sqlalchemy.create_engine(
 origins = [
     "http://localhost.tiangolo.com",
     "https://localhost.tiangolo.com",
-    "http://localhost",
     "http://localhost:*",
-    "https://localhost:*",
-    "http://localhost:8080",
-    "http://localhost:8000",
     "http://localhost:3000",
-    "http://0.0.0.0:3000",
-    "http://127.0.0.1:*",
-    "http://127.0.0.1:3000",
-    "https://127.0.0.1:*",
     "http://130.216.216.231:3000",
     "http://participant.safeblues.org:3000",
     "http://participant.safeblues.org",
     "https://participant.safeblues.org",
-    # "frontend:3000",
-    # "http://frontend:3000",
-    # "https://frontend:3000",
 ]
 
 app = FastAPI(title="Safe Blues Backend for frontend")
@@ -74,29 +63,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    # allow_methods=["*"],
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
-
-
-@app.get('/v1/admins')
-def get_all_admins_api():
-    query = 'SELECT * FROM admin_accounts'
-    with engine.connect() as connection:
-        result = connection.execute(query)
-        res = [row for row in result]
-        return(res)
-
-
-@app.get('/v1/admins/{id}')
-def get_admin_by_id(id: int) -> Json:
-    query = f'SELECT * FROM admin_accounts WHERE id=%(id)s'
-    with engine.connect() as connection:
-        result = connection.execute(query, {'id': id})
-        # res = [row for row in result]
-        return(result.fetchall())
-
 
 class SignInPayload(BaseModel):
     email: EmailStr
@@ -214,6 +183,9 @@ def get_uuid():
 
 @app.get('/v1/view_cookie')
 def view_cookies(req: Request):
+    """
+    just a helper for testing
+    """
     return(req.cookies)
 
 
@@ -382,30 +354,41 @@ def get_aggregate_statistics():
         payload = {"hist": hist, "bin_edges": bin_edges}
         return payload
         # return {"hist": hours_on_campus_list}
-@app.get("/api/rawstats")
-def get_aggregate_statistics():
+
+
+def scientific_round(num: int, keep: int)-> int:
     """
-    Should be consumed by the https://participant.safeblues.org/stats page only.
+    takes a number, and returns it trimmed to the level of precision specified
+    by `keep`. 0 keeps only the leading, 1 keeps the leading + 1 digit.
+    eg: scientific_round(123,1) -> 120 
+    """
+    denom = 10**(len(str(num))-1)
+    result = round(num/denom, keep)*denom
+    return int(result)
 
-    this endpoint should return a list of every participants total number of
-    hours on campus, but should not list any identifying information.
-    should simple return {"total_hours_list": [12, 14, 1, 5 ... ]}.
+@app.get("/api/num_participants")
+def get_rough_num_participants() -> dict:
+    """
+    gives us a some-what privacy preserving way of displaying the number of 
+    participants in the safe blues experiment
 
-    This data should be used for generating the plots for showing the
-    distribution of students campus hours.
-    TODO add caching to this function, so that it only gets generated once a day
-    or so, so that we done have a heavy aggregate operation run everytime
-    someone loads up their stats.
+    returns a dict representing 'roughly' the number of participants.
     """
     with engine.connect() as connection:
-        query = """SELECT SUM(duration)
-                    FROM experiment_data
-                    GROUP BY participant_id;"""
+        query = """SELECT COUNT(DISTINCT participant_id)
+                    FROM participants
+                    """
         result = connection.execute(query)
-        hours_on_campus_list = [float(round(duration_ms[0]/3600000, 1)) for duration_ms in result.fetchall()]
-        return {"hours_on_campus_list": hours_on_campus_list}
-        # return {"hist": hours_on_campus_list}
-
+        num_participants = result.fetchone()[0]
+        logging.info(f"current number of participants: {num_participants}")
+        if num_participants < 10:
+            return {"num_participants": "<10"}
+        if num_participants < 50:
+            return {"num_participants": "<50"}
+        if num_participants < 100:
+            return {"num_participants": "<100"}
+        num_participants = scientific_round(num_participants, 1)
+        return {"num_participants": f"about {num_participants}"}
 
 if __name__ == '__main__':
     uvicorn.run('main:app', host="0.0.0.0", port=PORT, reload=True, debug=True)
