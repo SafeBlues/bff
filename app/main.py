@@ -138,8 +138,14 @@ def validate_admin_token(req: Request):
     A decorator that checks the UUID token of a user, and throws an error if the
     user is not an admin, or if the token is not valid.
     """
-    print(req.cookies)
-    uuid = req.cookies['Authorization']
+    logging.info(f"cookies: {req.cookies}")
+    try:
+        uuid = req.cookies['Authorization']
+    except KeyError as e:
+        msg = "No authorization sent in cookie!"
+        logging.info(msg)
+        return({"status": 400, "msg": msg})
+
     with engine.connect() as connection:
         query = """
                     SELECT * 
@@ -150,14 +156,17 @@ def validate_admin_token(req: Request):
         res = connection.execute(query, {'uuid': uuid})
     user = res.fetchone()
     if user and user.account_type == 'admin':
-        print(f"ADMIN token validated: {user.email}")
-        return(req)
+        logging.info(f"ADMIN token validated: {user.email}")
+        return({"status": 200, "msg": req})
     else:
-        print(f'user: {user.email} trying to login as admin!')
+        logging.info(f'user: {user.email} trying to login as admin!')
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
+@app.get('/v1/validate-admin')
+def validate_admin_login(req: Request = Depends(validate_admin_token)):
+    return(True)
 
 
 # @validate_login(Request)
@@ -198,6 +207,7 @@ class Participant(BaseModel):
     last_name: str
     email: EmailStr
     password: str
+
 
 
 @app.get('/v1/participants')
