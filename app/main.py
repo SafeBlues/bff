@@ -92,8 +92,8 @@ def signin(payload: SignInPayload):
             connection.execute(create_new_uuid, {
                                'user_id': user_id, 'uuid': uuid, 'time': time})
 
-            response = Response(content=str(
-                {'passwords_match': True, 'uuid': str(uuid)}))
+            response = JSONResponse(content=
+                {'passwords_match': True, 'uuid': str(uuid)})
             response.set_cookie("Authorization", uuid,
                                 httponly=True, samesite='lax', secure=False)
             return response
@@ -315,6 +315,9 @@ def get_stats_for_participant(participant_id: str) -> dict:
     """
     # TODO add a catch for when the participant_id does not exist
     # - consider making this a funcion all on its own?
+    if not check_if_participant_id_exists(participant_id):
+        payload = {"status": 400, "description": "participant_id does not exist"}
+        return(payload)
     with engine.connect() as connection:
         query = """SELECT SUM(duration) as total_time_on_campus from experiment_data
                     where participant_id = %(participant_id)s
@@ -323,7 +326,8 @@ def get_stats_for_participant(participant_id: str) -> dict:
         duration_ms = result.fetchone()["total_time_on_campus"]
         hours_on_campus = round(duration_ms/3600000, 1)
         payload = {"participant_id": participant_id,
-                   "total_hours_on_campus": hours_on_campus}
+                   "total_hours_on_campus": hours_on_campus,
+                   "status": 200}
         return payload
 
 # TODO add caching to this function, wit daily ttl
