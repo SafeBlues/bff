@@ -24,7 +24,7 @@ from datetime import datetime
 import bcrypt
 import numpy as np
 import logging
-
+import requests
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 # load_dotenv()
@@ -71,7 +71,21 @@ class SignInPayload(BaseModel):
     email: EmailStr
     password: str
 
+def clear_login_tokens(user_id, connection):
+    # delete old tokens
+    delete_old_tokens_query = """DELETE FROM login_tokens 
+                                WHERE user_id = (%(user_id)s)"""
+    connection.execute(delete_old_tokens_query, {'user_id': user_id})
 
+def create_new_login_token(user_id, connection):
+    # create new login token
+    time = str(datetime.now())
+    uuid = uuid4()
+    create_new_uuid = "INSERT INTO login_tokens (user_id, uuid, time_created) VALUES (%(user_id)s, %(uuid)s, %(time)s)"
+    connection.execute(create_new_uuid, {
+                        'user_id': user_id, 'uuid': uuid, 'time': time})
+    return(uuid)
+    
 @app.post('/v1/signin')
 def signin(payload: SignInPayload):
     query = 'SELECT id, password FROM participants WHERE email=%(email)s'
@@ -83,21 +97,14 @@ def signin(payload: SignInPayload):
             return("Email does not exist")
         user_id, user_password = vals
         if bcrypt.checkpw(payload.password.encode(), user_password.encode('utf-8')):
-            # happy path
-            time = str(datetime.now())
-            uuid = uuid4()
-            # TODO add a way to clear all old tokens in here, or avoid making a
-            # new one if one already exists - but update the created at time?
-            create_new_uuid = "INSERT INTO login_tokens (user_id, uuid, time_created) VALUES (%(user_id)s, %(uuid)s, %(time)s)"
-            connection.execute(create_new_uuid, {
-                               'user_id': user_id, 'uuid': uuid, 'time': time})
+            clear_login_tokens(user_id, connection)            
+            uuid = create_new_login_token(user_id, connection)
 
             response = JSONResponse(content=
                 {'passwords_match': True, 'uuid': str(uuid)})
             response.set_cookie("Authorization", uuid,
                                 httponly=True, samesite='lax', secure=False)
             return response
-            # return({'passwords_match': True, 'uuid': uuid})
         else:
             return({'passwords_match': False})
 
@@ -138,7 +145,6 @@ def validate_admin_token(req: Request):
     A decorator that checks the UUID token of a user, and throws an error if the
     user is not an admin, or if the token is not valid.
     """
-    logging.info(f"cookies: {req.cookies}")
     try:
         uuid = req.cookies['Authorization']
     except KeyError as e:
@@ -407,6 +413,12 @@ def get_rough_num_participants() -> dict:
             return {"num_participants": "<100"}
         num_participants = scientific_round(num_participants, 1)
         return {"num_participants": f"about {num_participants}"}
+
+@app.get("/strands")
+def get_strands(req: Request = Depends(validate_admin_token)):
+    response = requests.get("https://api.safeblues.org/admin/list")
+    return(response.json())
+
 
 if __name__ == '__main__':
     uvicorn.run('main:app', host="0.0.0.0", port=PORT, reload=True, debug=True)
