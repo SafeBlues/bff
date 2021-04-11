@@ -71,11 +71,17 @@ class SignInPayload(BaseModel):
     email: EmailStr
     password: str
 
-def clear_login_tokens(user_id, connection):
+def clear_login_tokens_via_id(user_id, connection):
     # delete old tokens
     delete_old_tokens_query = """DELETE FROM login_tokens 
                                 WHERE user_id = (%(user_id)s)"""
     connection.execute(delete_old_tokens_query, {'user_id': user_id})
+
+def clear_login_tokens_via_uuid(uuid, connection):
+    # delete old tokens
+    delete_old_tokens_query = """DELETE FROM login_tokens 
+                                WHERE uuid = (%(uuid)s)"""
+    connection.execute(delete_old_tokens_query, {'uuid': uuid})
 
 def create_new_login_token(user_id, connection):
     # create new login token
@@ -86,18 +92,32 @@ def create_new_login_token(user_id, connection):
                         'user_id': user_id, 'uuid': uuid, 'time': time})
     return(uuid)
     
+@app.get("/v1/signout")
+def signout(req: Request):
+    logging.info("signout hit")
+    uuid = req.cookies["Authorization"]
+    logging.info(f"removing token {uuid}")
+    with engine.connect() as connection:
+        clear_login_tokens_via_uuid(uuid, connection)
+
+def get_user_info_from_email(email, connection):
+    query = 'SELECT id, password FROM participants WHERE email=%(email)s'
+    result = connection.execute(query, {'email': email})
+    vals = result.fetchone()
+    logging.info(f"fetched values: {vals}")
+    if vals == None:
+        return("Email does not exist")
+    user_id, user_password = vals
+    return user_id, user_password
+    
+
 @app.post('/v1/signin')
 def signin(payload: SignInPayload):
-    query = 'SELECT id, password FROM participants WHERE email=%(email)s'
     with engine.connect() as connection:
-        result = connection.execute(query, {'email': payload.email})
-        vals = result.fetchone()
-        logging.info(f"fetched values: {vals}")
-        if vals == None:
-            return("Email does not exist")
-        user_id, user_password = vals
+        user_id, user_password = get_user_info_from_email(payload.email, connection)
+
         if bcrypt.checkpw(payload.password.encode(), user_password.encode('utf-8')):
-            clear_login_tokens(user_id, connection)            
+            clear_login_tokens_via_id(user_id, connection)            
             uuid = create_new_login_token(user_id, connection)
 
             response = JSONResponse(content=
