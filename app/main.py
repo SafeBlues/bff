@@ -150,8 +150,10 @@ def validate_admin_token(req: Request):
     except KeyError as e:
         msg = "No authorization sent in cookie!"
         logging.info(msg)
-        return({"status": 400, "msg": msg})
-
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No auth sent in request, or uuid is not valid",
+        )
     with engine.connect() as connection:
         query = """
                     SELECT * 
@@ -161,9 +163,16 @@ def validate_admin_token(req: Request):
                 """
         res = connection.execute(query, {'uuid': uuid})
     user = res.fetchone()
+    if user is None:
+        logging.info(f"no user matches uuid {uuid}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No user matches the uuid",
+        )
     if user and user.account_type == 'admin':
+        # happy path:
         logging.info(f"ADMIN token validated: {user.email}")
-        return({"status": 200, "msg": req})
+        return
     else:
         logging.info(f'user: {user.email} trying to login as admin!')
         raise HTTPException(
