@@ -94,7 +94,7 @@ def create_new_login_token(user_id, connection):
     
 @app.get("/v1/signout")
 def signout(req: Request):
-    loggin.debug("signout hit")
+    logging.debug("signout hit")
     uuid = req.cookies["Authorization"]
     logging.info(f"removing token {uuid}")
     with engine.connect() as connection:
@@ -104,7 +104,7 @@ def get_user_info_from_email(email, connection):
     query = 'SELECT id, password FROM participants WHERE email=%(email)s'
     result = connection.execute(query, {'email': email})
     vals = result.fetchone()
-    loggin.debug(f"fetched values: {vals}")
+    logging.debug(f"fetched values: {vals}")
     if vals == None:
         return("Email does not exist")
     user_id, user_password = vals
@@ -169,7 +169,7 @@ def validate_admin_token(req: Request):
         uuid = req.cookies['Authorization']
     except KeyError as e:
         msg = "No authorization sent in cookie!"
-        loggin.debug(msg)
+        logging.debug(msg)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="No auth sent in request, or uuid is not valid",
@@ -184,7 +184,7 @@ def validate_admin_token(req: Request):
         res = connection.execute(query, {'uuid': uuid})
     user = res.fetchone()
     if user is None:
-        loggin.debug(f"no user matches uuid {uuid}")
+        logging.debug(f"no user matches uuid {uuid}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="No user matches the uuid",
@@ -397,7 +397,7 @@ def get_aggregate_statistics():
                     GROUP BY participant_id;"""
         result = connection.execute(query)
         hours_on_campus_list = [float(round(duration_ms[0]/3600000, 1)) for duration_ms in result.fetchall()]
-        loggin.debug(hours_on_campus_list)
+        logging.debug(hours_on_campus_list)
         # payload = {"hours_on_campus_list": hours_on_campus_list}
         # hours_on_campus = [6, 31.8, 9.2, 4.6]
         hist, bin_edges = np.histogram(hours_on_campus_list, bins=15)
@@ -433,7 +433,7 @@ def get_rough_num_participants() -> dict:
                     """
         result = connection.execute(query)
         num_participants = result.fetchone()[0]
-        loggin.debug(f"current number of participants: {num_participants}")
+        logging.debug(f"current number of participants: {num_participants}")
         if num_participants < 10:
             return {"num_participants": "<10"}
         if num_participants < 50:
