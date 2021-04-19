@@ -369,7 +369,13 @@ def get_stats_for_participant(participant_id: str) -> dict:
                     """
         result = connection.execute(query, {"participant_id": participant_id})
         duration_ms = result.fetchone()["total_time_on_campus"]
-        hours_on_campus = round(duration_ms/3600000, 1)
+        try:
+            hours_on_campus = round(duration_ms/3600000, 1)
+        except TypeError as e:
+            # catch for no data yet
+            return({"participant_id": participant_id,
+                   "total_hours_on_campus": 0,
+                   "status": 200})
         payload = {"participant_id": participant_id,
                    "total_hours_on_campus": hours_on_campus,
                    "status": 200}
