@@ -349,7 +349,7 @@ def push_experiment_data(data: ExperimentData):
             query = "INSERT INTO experiment_data (participant_id, status_id, date, truncated_entry_time, duration, count_active) " \
                     'VALUES (%(participant_id)s, %(status_id)s, %(date)s, %(truncated_entry_time)s, %(duration)s, %(count_active)s);'
             result = connection.execute(
-                query, {"participant_id": data.participant_id, "status_id": status["status_id"], "date": time, "truncated_entry_time": status["truncated_entry_time"], "duration": status["duration"], "count_active": status["count_active"]})
+                query, {"participant_id": data.participant_id, "status_id": status["status_id"], "date": time, "truncated_entry_time": status["truncate_entry_time"], "duration": status["duration"], "count_active": status["count_active"]})
         return {"status": 200}
 
 
