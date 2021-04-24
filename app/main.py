@@ -402,7 +402,7 @@ def get_aggregate_statistics():
                     FROM experiment_data
                     GROUP BY participant_id;"""
         result = connection.execute(query)
-        hours_on_campus_list = [float(round(duration_ms[0]/3600000, 1)) for duration_ms in result.fetchall()]
+        hours_on_campus_list = [float(round(num_15_min_intervals[0]*0.25, 1)) for num_15_min_intervals in result.fetchall()]
         logging.debug(hours_on_campus_list)
         # payload = {"hours_on_campus_list": hours_on_campus_list}
         # hours_on_campus = [6, 31.8, 9.2, 4.6]
