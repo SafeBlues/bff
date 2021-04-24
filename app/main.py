@@ -346,7 +346,7 @@ def push_experiment_data(data: ExperimentData):
     time = str(datetime.now())
     with engine.connect() as connection:
         for status in data.statuses:
-            query = "INSERT INTO experiment_data (participant_id, status_id, date, truncated_entry_time, duration, count_active) " \
+            query = "INSERT IGNORE INTO experiment_data (participant_id, status_id, date, truncated_entry_time, duration, count_active) " \
                     'VALUES (%(participant_id)s, %(status_id)s, %(date)s, %(truncated_entry_time)s, %(duration)s, %(count_active)s);'
             result = connection.execute(
                 query, {"participant_id": data.participant_id, "status_id": status["status_id"], "date": time, "truncated_entry_time": status["truncate_entry_time"], "duration": status["duration"], "count_active": status["count_active"]})
@@ -442,14 +442,14 @@ def get_rough_num_participants() -> dict:
         result = connection.execute(query)
         num_participants = result.fetchone()[0]
         logging.debug(f"current number of participants: {num_participants}")
-        if num_participants < 10:
-            return {"num_participants": "<10"}
-        if num_participants < 50:
-            return {"num_participants": "<50"}
-        if num_participants < 100:
-            return {"num_participants": "<100"}
-        num_participants = scientific_round(num_participants, 1)
-        return {"num_participants": f"about {num_participants}"}
+        # if num_participants < 10:
+        #     return {"num_participants": "<10"}
+        # if num_participants < 50:
+        #     return {"num_participants": "<50"}
+        # if num_participants < 100:
+        #     return {"num_participants": "<100"}
+        # num_participants = scientific_round(num_participants, 1)
+        return {"num_participants": f"{num_participants}"}
 
 @app.get("/strands")
 def get_strands(req: Request = Depends(validate_admin_token)):
