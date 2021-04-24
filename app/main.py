@@ -368,9 +368,11 @@ def get_stats_for_participant(participant_id: str) -> dict:
                     where participant_id = %(participant_id)s
                     """
         result = connection.execute(query, {"participant_id": participant_id})
-        duration_ms = result.fetchone()["total_time_on_campus"]
+        num_15_min_intervals = int(result.fetchone()["total_time_on_campus"])
+        logging.debug(f"participant {participant_id} has {num_15_min_intervals*0.25} hours on campus")
         try:
-            hours_on_campus = round(duration_ms/3600000, 1)
+            hours_on_campus = round(num_15_min_intervals*0.25, 0)
+
         except TypeError as e:
             # catch for no data yet
             return({"participant_id": participant_id,
@@ -403,7 +405,7 @@ def get_aggregate_statistics():
                     GROUP BY participant_id;"""
         result = connection.execute(query)
         hours_on_campus_list = [int(num_15_min_intervals[0])*0.25 for num_15_min_intervals in result.fetchall()]
-        logging.debug(hours_on_campus_list)
+        logging.debug(f"{hours_on_campus_list=}")
         # payload = {"hours_on_campus_list": hours_on_campus_list}
         # hours_on_campus = [6, 31.8, 9.2, 4.6]
         hist, bin_edges = np.histogram(hours_on_campus_list, bins=15)
