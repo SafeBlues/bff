@@ -417,7 +417,7 @@ def get_aggregate_statistics():
         #For now a (two parameter) Gamma Distribution is fit
         mean = np.mean(hours_on_campus_list)
         var = np.var(hours_on_campus_list)
-        alpha = mean**2 / var #gamma shape
+        alpha = 3.0#mean**2 / var #gamma shape
         scale_param = var / mean
         #first the unscaled by mean version
         x_smooth = np.linspace(gamma.ppf(0.01, alpha),gamma.ppf(0.99, alpha), 100)
