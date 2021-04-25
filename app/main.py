@@ -412,8 +412,8 @@ def get_aggregate_statistics():
         # payload = {"hist": hist, "bin_edges": bin_edges}
         hist = [round(i, 2) for i in hist.tolist()]
         bin_edges = [round(i, 2) for i in bin_edges.tolist()]
-        x_smooth = [0.0]
-        y_smooth = [0.0]
+        x_smooth = [0.0,1.0,2.0,3.0,4.0,5.0]
+        y_smooth = [0.0,1.7,2.8,3.2,4.9,0.7]
         payload = {"hist": hist, "bin_edges": bin_edges, "smoothed_hist_x": x_smooth, "smoothed_hist_y": y_smooth}
         return payload
         # return {"hist": hours_on_campus_list}
