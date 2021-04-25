@@ -23,6 +23,7 @@ from uuid import uuid4
 from datetime import datetime
 import bcrypt
 import numpy as np
+from scipy.stats import gamma 
 import logging
 import requests
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
@@ -412,8 +413,19 @@ def get_aggregate_statistics():
         # payload = {"hist": hist, "bin_edges": bin_edges}
         hist = [round(i, 2) for i in hist.tolist()]
         bin_edges = [round(i, 2) for i in bin_edges.tolist()]
-        x_smooth = [0.0,1.0,2.0,3.0,4.0,5.0]
-        y_smooth = [0.0,1.7,2.8,3.2,4.9,0.7]
+
+        #For now a (two parameter) Gamma Distribution is fit
+        mean = np.mean(hours_on_campus_list)
+        var = np.var(hours_on_campus_list)
+        alpha = mean**2 / var #gamma shape
+        scale_param = var / mean
+        #first the unscaled by mean version
+        x_smooth = np.linspace(gamma.ppf(0.01, alpha),gamma.ppf(0.99, alpha), 100)
+        y_smooth = gamma.pdf(x_smooth,alpha)
+        #now scaling
+        x_smooth = scale_param * x_smooth
+        y_smooth = y_smooth / scale_param
+
         payload = {"hist": hist, "bin_edges": bin_edges, "x_smooth": x_smooth, "y_smooth": y_smooth}
         return payload
         # return {"hist": hours_on_campus_list}
