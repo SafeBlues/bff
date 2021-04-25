@@ -415,20 +415,18 @@ def get_aggregate_statistics():
         bin_edges = [round(i, 2) for i in bin_edges.tolist()]
 
         #For now a (two parameter) Gamma Distribution is fit
-        # mean = np.mean(hours_on_campus_list)
-        # var = np.var(hours_on_campus_list)
-        # alpha = mean**2 / var #gamma shape
-        # scale_param = var / mean
-        # #first the unscaled by mean version
-        # x_smooth = np.linspace(gamma.ppf(0.01, alpha),gamma.ppf(0.99, alpha), 100)
-        # y_smooth = gamma.pdf(x_smooth,alpha)
-        # #now scaling
-        # x_smooth = scale_param * x_smooth
-        # y_smooth = y_smooth / scale_param
-        x_smooth =[0.0,1.0]
-        y_smooth=[0.0,1.0]
+        mean = np.mean(hours_on_campus_list)
+        var = np.var(hours_on_campus_list)
+        alpha = mean**2 / var #gamma shape
+        scale_param = var / mean
+        #first the unscaled by mean version
+        x_smooth = np.linspace(gamma.ppf(0.01, alpha),gamma.ppf(0.99, alpha), 100)
+        y_smooth = gamma.pdf(x_smooth,alpha)
+        #now scaling
+        x_smooth = scale_param * x_smooth
+        y_smooth = y_smooth / scale_param
 
-        payload = {"hist": hist, "bin_edges": bin_edges, "x_smooth": x_smooth, "y_smooth": y_smooth}
+        payload = {"hist": hist, "bin_edges": bin_edges, "x_smooth": list(x_smooth), "y_smooth": list(y_smooth)}
         return payload
         # return {"hist": hours_on_campus_list}
 
