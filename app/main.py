@@ -368,21 +368,17 @@ def get_stats_for_participant(participant_id: str) -> dict:
         query = """SELECT SUM(duration) as total_time_on_campus from experiment_data
                     where participant_id = %(participant_id)s
                     """
-        result = connection.execute(query, {"participant_id": participant_id})
-        num_15_min_intervals = int(result.fetchone()["total_time_on_campus"])
+        result = connection.execute(query, {"participant_id": participant_id}).fetchone()
+        if not result:
+            return  {"participant_id": participant_id,
+                        "total_hours_on_campus": 0,
+                        "status": 200} 
+        num_15_min_intervals = int(result["total_time_on_campus"])
         logging.debug(f"participant {participant_id} has {num_15_min_intervals*0.25} hours on campus")
-        try:
-            hours_on_campus = round(num_15_min_intervals*0.25, 0)
-
-        except TypeError as e:
-            # catch for no data yet
-            return({"participant_id": participant_id,
-                   "total_hours_on_campus": 0,
-                   "status": 200})
-        payload = {"participant_id": participant_id,
+        hours_on_campus = round(num_15_min_intervals*0.25, 0)
+        return   {"participant_id": participant_id,
                    "total_hours_on_campus": hours_on_campus,
                    "status": 200}
-        return payload
 
 # TODO add caching to this function, wit daily ttl
 @app.get("/api/stats")
