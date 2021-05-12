@@ -13,6 +13,12 @@ from scipy.stats import gamma
 
 logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.DEBUG)
 
+# which phase to cumulate hours into
+# 0 for off
+# 1,2,3 for 1st,2nd,3rd phases
+CURRENT_PHASE = 1
+CURRENT_DISPLAY_HOURS = "display_hours_" + str(CURRENT_PHASE)
+
 db_hostname = os.environ["HOST"]
 db_port = int(os.environ["DB_PORT"])
 db_user = os.environ["USER"]
@@ -109,9 +115,17 @@ def push_experiment_data(data: ExperimentData):
     time = str(datetime.now())
     with engine.connect() as connection:
         for status in data.statuses:
+            duration = status["duration"]
+            count_active = status["count_active"]
+            # update experiment_data set display_hours_1 = least(40,greatest(0,greatest(count_active,duration)))/4.0;
+            display_hours = min(40, max(0, max(duration, count_active))) / 4
             query = (
-                "INSERT IGNORE INTO experiment_data (participant_id, status_id, date, truncated_entry_time, duration, count_active) "
-                "VALUES (%(participant_id)s, %(status_id)s, %(date)s, %(truncated_entry_time)s, %(duration)s, %(count_active)s);"
+                "INSERT IGNORE INTO experiment_data (participant_id, status_id, date, truncated_entry_time, duration, count_active, "
+                + CURRENT_DISPLAY_HOURS
+                + ") "
+                "VALUES (%(participant_id)s, %(status_id)s, %(date)s, %(truncated_entry_time)s, %(duration)s, %(count_active)s, %("
+                + CURRENT_DISPLAY_HOURS
+                + ")s);"
             )
             result = connection.execute(
                 query,
@@ -120,8 +134,9 @@ def push_experiment_data(data: ExperimentData):
                     "status_id": status["status_id"],
                     "date": time,
                     "truncated_entry_time": status["truncate_entry_time"],
-                    "duration": status["duration"],
-                    "count_active": status["count_active"],
+                    "duration": duration,
+                    "count_active": count_active,
+                    CURRENT_DISPLAY_HOURS: display_hours,
                 },
             )
         return {"status": 200}
