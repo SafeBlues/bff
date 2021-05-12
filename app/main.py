@@ -103,6 +103,7 @@ def create_Participant2(participant: Participant2):
 
 class ExperimentData(BaseModel):
     participant_id: str
+    version_code: int
     statuses: list
 
 
@@ -120,10 +121,10 @@ def push_experiment_data(data: ExperimentData):
             # update experiment_data set display_hours_1 = least(40,greatest(0,greatest(count_active,duration)))/4.0;
             display_hours = min(40, max(0, max(duration, count_active))) / 4
             query = (
-                "INSERT IGNORE INTO experiment_data (participant_id, status_id, date, truncated_entry_time, duration, count_active, "
+                "INSERT IGNORE INTO experiment_data (participant_id, version_code, status_id, date, truncated_entry_time, duration, count_active, "
                 + CURRENT_DISPLAY_HOURS
                 + ") "
-                "VALUES (%(participant_id)s, %(status_id)s, %(date)s, %(truncated_entry_time)s, %(duration)s, %(count_active)s, %("
+                "VALUES (%(participant_id)s, %(version_code)s, %(status_id)s, %(date)s, %(truncated_entry_time)s, %(duration)s, %(count_active)s, %("
                 + CURRENT_DISPLAY_HOURS
                 + ")s);"
             )
@@ -132,6 +133,7 @@ def push_experiment_data(data: ExperimentData):
                 {
                     "participant_id": data.participant_id,
                     "status_id": status["status_id"],
+                    "version_code": data.version_code,
                     "date": time,
                     "truncated_entry_time": status["truncate_entry_time"],
                     "duration": duration,
