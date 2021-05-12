@@ -48,13 +48,6 @@ engine = sqlalchemy.create_engine(
 )
 
 origins = [
-    "http://localhost.tiangolo.com",
-    "https://localhost.tiangolo.com",
-    "http://localhost:*",
-    "http://localhost:3000",
-    "http://130.216.216.231:3000",
-    "http://participant.safeblues.org:3000",
-    "http://participant.safeblues.org",
     "https://participant.safeblues.org",
 ]
 
@@ -93,7 +86,7 @@ def create_new_login_token(user_id, connection):
                         'user_id': user_id, 'uuid': uuid, 'time': time})
     return(uuid)
     
-@app.get("/v1/signout")
+# @app.get("/v1/signout")
 def signout(req: Request):
     logging.debug("signout hit")
     uuid = req.cookies["Authorization"]
@@ -112,7 +105,7 @@ def get_user_info_from_email(email, connection):
     return user_id, user_password
     
 
-@app.post('/v1/signin')
+# @app.post('/v1/signin')
 def signin(payload: SignInPayload):
     with engine.connect() as connection:
         user_id, user_password = get_user_info_from_email(payload.email, connection)
@@ -200,13 +193,13 @@ def validate_admin_token(req: Request):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
-@app.get('/v1/validate-admin')
+# @app.get('/v1/validate-admin')
 def validate_admin_login(req: Request = Depends(validate_admin_token)):
     return(True)
 
 
 # @validate_login(Request)
-@app.get('/v1/logged_in_test')
+# @app.get('/v1/logged_in_test')
 def logged_in_test(req: Request = Depends(validate_token)):
     # TODO change this into a decorator to wrap other endpoints in.
     uuid = req.cookies['Authorization']
@@ -222,7 +215,7 @@ def logged_in_test(req: Request = Depends(validate_token)):
     return(f'logged in as {user.first_name} {user.last_name} email:{user.email}')
 
 
-@app.get('/v1/uuid4')
+# @app.get('/v1/uuid4')
 def get_uuid():
     """
     Just generates a UUID4 for testing
@@ -230,7 +223,7 @@ def get_uuid():
     return(uuid4())
 
 
-@app.get('/v1/view_cookie')
+# @app.get('/v1/view_cookie')
 def view_cookies(req: Request):
     """
     just a helper for testing
@@ -246,7 +239,7 @@ class Participant(BaseModel):
 
 
 
-@app.get('/v1/participants')
+# @app.get('/v1/participants')
 def get_all_participants(req: Request = Depends(validate_admin_token)):
     query = 'SELECT * FROM participants'
     with engine.connect() as connection:
@@ -254,7 +247,7 @@ def get_all_participants(req: Request = Depends(validate_admin_token)):
         return(result.fetchall())
 
 
-@app.get('/v1/participants/{id}')
+# @app.get('/v1/participants/{id}')
 def get_participant_by_id(id: int) -> Json:
     query = f'SELECT * FROM participants WHERE id=%(id)s'
     with engine.connect() as connection:
@@ -262,7 +255,7 @@ def get_participant_by_id(id: int) -> Json:
         return(result.fetchall())
 
 
-@app.post('/v1/participants')
+# @app.post('/v1/participants')
 def create_Participant(participant: Participant):
 
     encrypted_password = bcrypt.hashpw(
@@ -453,19 +446,7 @@ def get_rough_num_participants() -> dict:
         result = connection.execute(query)
         num_participants = result.fetchone()[0]
         logging.debug(f"current number of participants: {num_participants}")
-        # if num_participants < 10:
-        #     return {"num_participants": "<10"}
-        # if num_participants < 50:
-        #     return {"num_participants": "<50"}
-        # if num_participants < 100:
-        #     return {"num_participants": "<100"}
-        # num_participants = scientific_round(num_participants, 1)
         return {"num_participants": f"{num_participants}"}
-
-@app.get("/strands")
-def get_strands(req: Request = Depends(validate_admin_token)):
-    response = requests.get("https://api.safeblues.org/admin/list")
-    return(response.json())
 
 
 if __name__ == '__main__':
