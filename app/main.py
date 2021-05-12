@@ -1,41 +1,24 @@
-import os
-from functools import wraps
-from fastapi import FastAPI, Path, HTTPException, status
-from fastapi.openapi.models import ParameterBase
-from fastapi.param_functions import Depends
-from pydantic import BaseModel
-from dotenv import load_dotenv
-from pydantic.networks import EmailStr
-from pydantic.types import Json
-# for fixing cors issues/allowing differnet origins
-from fastapi.middleware.cors import CORSMiddleware
-import sqlalchemy
-from starlette.datastructures import QueryParams
-
-from starlette.responses import Response, JSONResponse
-from starlette.requests import Request
-
-from fastapi.encoders import jsonable_encoder
-import uvicorn
-
-from email_validator import validate_email, EmailNotValidError
-from uuid import uuid4
-from datetime import datetime
-import bcrypt
-import numpy as np
-from scipy.stats import gamma 
 import logging
-import requests
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+import os
+from datetime import datetime
 
-# load_dotenv()
+import numpy as np
+import sqlalchemy
+import uvicorn
+from fastapi import FastAPI, HTTPException, Path, status
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from pydantic.networks import EmailStr
+from scipy.stats import gamma
 
-db_hostname = os.environ['HOST']
-db_port = int(os.environ['DB_PORT'])
-db_user = os.environ['USER']
-db_pass = os.environ['PASSWORD']
-db_name = os.environ['DB_NAME']
-PORT = int(os.environ['PORT'])
+logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.DEBUG)
+
+db_hostname = os.environ["HOST"]
+db_port = int(os.environ["DB_PORT"])
+db_user = os.environ["USER"]
+db_pass = os.environ["PASSWORD"]
+db_name = os.environ["DB_NAME"]
+PORT = int(os.environ["PORT"])
 engine = sqlalchemy.create_engine(
     sqlalchemy.engine.url.URL(
         drivername="mysql+pymysql",
@@ -61,221 +44,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class SignInPayload(BaseModel):
-    email: EmailStr
-    password: str
-
-def clear_login_tokens_via_id(user_id, connection):
-    # delete old tokens
-    delete_old_tokens_query = """DELETE FROM login_tokens 
-                                WHERE user_id = (%(user_id)s)"""
-    connection.execute(delete_old_tokens_query, {'user_id': user_id})
-
-def clear_login_tokens_via_uuid(uuid, connection):
-    # delete old tokens
-    delete_old_tokens_query = """DELETE FROM login_tokens 
-                                WHERE uuid = (%(uuid)s)"""
-    connection.execute(delete_old_tokens_query, {'uuid': uuid})
-
-def create_new_login_token(user_id, connection):
-    # create new login token
-    time = str(datetime.now())
-    uuid = uuid4()
-    create_new_uuid = "INSERT INTO login_tokens (user_id, uuid, time_created) VALUES (%(user_id)s, %(uuid)s, %(time)s)"
-    connection.execute(create_new_uuid, {
-                        'user_id': user_id, 'uuid': uuid, 'time': time})
-    return(uuid)
-    
-# @app.get("/v1/signout")
-def signout(req: Request):
-    logging.debug("signout hit")
-    uuid = req.cookies["Authorization"]
-    logging.info(f"removing token {uuid}")
-    with engine.connect() as connection:
-        clear_login_tokens_via_uuid(uuid, connection)
-
-def get_user_info_from_email(email, connection):
-    query = 'SELECT id, password FROM participants WHERE email=%(email)s'
-    result = connection.execute(query, {'email': email})
-    vals = result.fetchone()
-    logging.debug(f"fetched values: {vals}")
-    if vals == None:
-        return("Email does not exist")
-    user_id, user_password = vals
-    return user_id, user_password
-    
-
-# @app.post('/v1/signin')
-def signin(payload: SignInPayload):
-    with engine.connect() as connection:
-        user_id, user_password = get_user_info_from_email(payload.email, connection)
-
-        if bcrypt.checkpw(payload.password.encode(), user_password.encode('utf-8')):
-            clear_login_tokens_via_id(user_id, connection)            
-            uuid = create_new_login_token(user_id, connection)
-
-            response = JSONResponse(content=
-                {'passwords_match': True, 'uuid': str(uuid)})
-            response.set_cookie("Authorization", uuid,
-                                httponly=True, samesite='lax', secure=False)
-            return response
-        else:
-            return({'passwords_match': False})
-
-
-# def validate_login(req: Request):
-#     def with_validation(*args, **kwargs):
-#         print(req.cookies['Authorization'])
-#         return(func(req))
-#     return(with_validation)
-
-def validate_token(req: Request):
-    """
-    A decorator that checks the UUID token of a user, and throws an error if the
-    UUID is not valid.
-    """
-    uuid = req.cookies['Authorization']
-    with engine.connect() as connection:
-        query = """
-                    SELECT * 
-                    FROM participants
-                    JOIN (login_tokens) ON (participants.id = login_tokens.user_id)
-                    WHERE uuid=%(uuid)s
-                """
-        res = connection.execute(query, {'uuid': uuid})
-    user = res.fetchone()
-    if user:
-        print(f"PARTICIPANT token validated: {user.email}")
-        return(req)
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-        )
-
-
-def validate_admin_token(req: Request):
-    """
-    A decorator that checks the UUID token of a user, and throws an error if the
-    user is not an admin, or if the token is not valid.
-    """
-    try:
-        uuid = req.cookies['Authorization']
-    except KeyError as e:
-        msg = "No authorization sent in cookie!"
-        logging.debug(msg)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No auth sent in request, or uuid is not valid",
-        )
-    with engine.connect() as connection:
-        query = """
-                    SELECT * 
-                    FROM participants
-                    JOIN (login_tokens) ON (participants.id = login_tokens.user_id)
-                    WHERE uuid=%(uuid)s
-                """
-        res = connection.execute(query, {'uuid': uuid})
-    user = res.fetchone()
-    if user is None:
-        logging.debug(f"no user matches uuid {uuid}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No user matches the uuid",
-        )
-    if user and user.account_type == 'admin':
-        # happy path:
-        logging.info(f"ADMIN token validated: {user.email}")
-        return
-    else:
-        logging.info(f'user: {user.email} trying to login as admin!')
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-        )
-# @app.get('/v1/validate-admin')
-def validate_admin_login(req: Request = Depends(validate_admin_token)):
-    return(True)
-
-
-# @validate_login(Request)
-# @app.get('/v1/logged_in_test')
-def logged_in_test(req: Request = Depends(validate_token)):
-    # TODO change this into a decorator to wrap other endpoints in.
-    uuid = req.cookies['Authorization']
-    with engine.connect() as connection:
-        query = """
-                    SELECT * 
-                    FROM participants
-                    JOIN (login_tokens) ON (participants.id = login_tokens.user_id)
-                    WHERE uuid=%(uuid)s
-                """
-        res = connection.execute(query, {'uuid': uuid})
-    user = res.fetchone()
-    return(f'logged in as {user.first_name} {user.last_name} email:{user.email}')
-
-
-# @app.get('/v1/uuid4')
-def get_uuid():
-    """
-    Just generates a UUID4 for testing
-    """
-    return(uuid4())
-
-
-# @app.get('/v1/view_cookie')
-def view_cookies(req: Request):
-    """
-    just a helper for testing
-    """
-    return(req.cookies)
-
-
-class Participant(BaseModel):
-    first_name: str
-    last_name: str
-    email: EmailStr
-    password: str
-
-
-
-# @app.get('/v1/participants')
-def get_all_participants(req: Request = Depends(validate_admin_token)):
-    query = 'SELECT * FROM participants'
-    with engine.connect() as connection:
-        result = connection.execute(query)
-        return(result.fetchall())
-
-
-# @app.get('/v1/participants/{id}')
-def get_participant_by_id(id: int) -> Json:
-    query = f'SELECT * FROM participants WHERE id=%(id)s'
-    with engine.connect() as connection:
-        result = connection.execute(query, {'id': id})
-        return(result.fetchall())
-
-
-# @app.post('/v1/participants')
-def create_Participant(participant: Participant):
-
-    encrypted_password = bcrypt.hashpw(
-        participant.password.encode(), bcrypt.gensalt())
-
-    query = "INSERT INTO participants (first_name, last_name, email, password) " \
-            'VALUES (%(first_name)s, %(last_name)s, %(email)s, %(password)s);'
-    with engine.connect() as connection:
-        result = connection.execute(query, {"first_name": participant.first_name,
-                                            "last_name": participant.last_name, "email": participant.email, "password": encrypted_password})
-        return 'success'
-
 
 def check_if_participant_id_exists(participant_id):
     with engine.connect() as connection:
         query = """SELECT COUNT(1)
                 FROM participants
                 WHERE participant_id = %(participant_id)s;"""
-        result = connection.execute(
-            query, {"participant_id": participant_id})
+        result = connection.execute(query, {"participant_id": participant_id})
         participant_exists = bool(result.fetchone()["COUNT(1)"])
         return participant_exists
 
@@ -285,27 +60,24 @@ class Participant2(BaseModel):
     participant_id: str
 
 
-@app.post('/v2/participants')
+@app.post("/v2/participants")
 def create_Participant2(participant: Participant2):
     if len(participant.participant_id) != 10:
         detail = [  # recreating fastAPI typing error for custom error
             {
-                "loc": [
-                    "body",
-                    "participant_id"
-                ],
+                "loc": ["body", "participant_id"],
                 "msg": "participant_id is the wrong length",
-                "type": "value_error.participant_id"
+                "type": "value_error.participant_id",
             }
         ]
         raise HTTPException(status_code=422, detail=detail)
 
     if not check_if_participant_id_exists(participant.participant_id):
         with engine.connect() as connection:
-            query = "INSERT INTO participants (email, participant_id) " \
-                    'VALUES (%(email)s, %(participant_id)s);'
+            query = "INSERT INTO participants (email, participant_id) " "VALUES (%(email)s, %(participant_id)s);"
             result = connection.execute(
-                query, {"email": participant.email, "participant_id": participant.participant_id})
+                query, {"email": participant.email, "participant_id": participant.participant_id}
+            )
             # TODO check if the participant id already exists
             # TODO check for success
             # TODO set a uuid for the user at the same time
@@ -315,12 +87,9 @@ def create_Participant2(participant: Participant2):
     else:
         detail = [  # recreating fastAPI typing error for custom error
             {
-                "loc": [
-                    "body",
-                    "participant_id"
-                ],
+                "loc": ["body", "participant_id"],
                 "msg": "participant_id is already linked to an email",
-                "type": "value_error.participant_id"
+                "type": "value_error.participant_id",
             }
         ]
         raise HTTPException(status_code=422, detail=detail)
@@ -331,19 +100,30 @@ class ExperimentData(BaseModel):
     statuses: list
 
 
-@app.post('/push_experiment_data')
+@app.post("/push_experiment_data")
 def push_experiment_data(data: ExperimentData):
     """
     this endpoint will take the data pushed from the aws app and the mobile apps
-    and store it in the database/pms. 
+    and store it in the database/pms.
     """
     time = str(datetime.now())
     with engine.connect() as connection:
         for status in data.statuses:
-            query = "INSERT IGNORE INTO experiment_data (participant_id, status_id, date, truncated_entry_time, duration, count_active) " \
-                    'VALUES (%(participant_id)s, %(status_id)s, %(date)s, %(truncated_entry_time)s, %(duration)s, %(count_active)s);'
+            query = (
+                "INSERT IGNORE INTO experiment_data (participant_id, status_id, date, truncated_entry_time, duration, count_active) "
+                "VALUES (%(participant_id)s, %(status_id)s, %(date)s, %(truncated_entry_time)s, %(duration)s, %(count_active)s);"
+            )
             result = connection.execute(
-                query, {"participant_id": data.participant_id, "status_id": status["status_id"], "date": time, "truncated_entry_time": status["truncate_entry_time"], "duration": status["duration"], "count_active": status["count_active"]})
+                query,
+                {
+                    "participant_id": data.participant_id,
+                    "status_id": status["status_id"],
+                    "date": time,
+                    "truncated_entry_time": status["truncate_entry_time"],
+                    "duration": status["duration"],
+                    "count_active": status["count_active"],
+                },
+            )
         return {"status": 200}
 
 
@@ -356,22 +136,19 @@ def get_stats_for_participant(participant_id: str) -> dict:
     # - consider making this a funcion all on its own?
     if not check_if_participant_id_exists(participant_id):
         payload = {"status": 400, "description": "participant_id does not exist"}
-        return(payload)
+        return payload
     with engine.connect() as connection:
         query = """SELECT SUM(duration) as total_time_on_campus from experiment_data
                     where participant_id = %(participant_id)s
                     """
         result = connection.execute(query, {"participant_id": participant_id}).fetchone()["total_time_on_campus"]
         if not result:
-            return  {"participant_id": participant_id,
-                        "total_hours_on_campus": 0,
-                        "status": 200} 
+            return {"participant_id": participant_id, "total_hours_on_campus": 0, "status": 200}
         num_15_min_intervals = int(result)
         logging.debug(f"participant {participant_id} has {num_15_min_intervals*0.25} hours on campus")
-        hours_on_campus = round(num_15_min_intervals*0.25, 0)
-        return   {"participant_id": participant_id,
-                   "total_hours_on_campus": hours_on_campus,
-                   "status": 200}
+        hours_on_campus = round(num_15_min_intervals * 0.25, 0)
+        return {"participant_id": participant_id, "total_hours_on_campus": hours_on_campus, "status": 200}
+
 
 # TODO add caching to this function, wit daily ttl
 @app.get("/api/stats")
@@ -394,7 +171,7 @@ def get_aggregate_statistics():
                     FROM experiment_data
                     GROUP BY participant_id;"""
         result = connection.execute(query)
-        hours_on_campus_list = [int(num_15_min_intervals[0])*0.25 for num_15_min_intervals in result.fetchall()]
+        hours_on_campus_list = [int(num_15_min_intervals[0]) * 0.25 for num_15_min_intervals in result.fetchall()]
         logging.debug(f"{hours_on_campus_list=}")
         # payload = {"hours_on_campus_list": hours_on_campus_list}
         # hours_on_campus = [6, 31.8, 9.2, 4.6]
@@ -403,38 +180,39 @@ def get_aggregate_statistics():
         hist = [round(i, 2) for i in hist.tolist()]
         bin_edges = [round(i, 2) for i in bin_edges.tolist()]
 
-        #For now a (two parameter) Gamma Distribution is fit
+        # For now a (two parameter) Gamma Distribution is fit
         mean = np.mean(hours_on_campus_list)
         var = np.var(hours_on_campus_list)
-        alpha = mean**2 / var #gamma shape
+        alpha = mean ** 2 / var  # gamma shape
         scale_param = var / mean
-        #first the unscaled by mean version
-        x_smooth = np.linspace(gamma.ppf(0.01, alpha),gamma.ppf(0.99, alpha), 100)
-        y_smooth = gamma.pdf(x_smooth,alpha)
-        #now scaling
+        # first the unscaled by mean version
+        x_smooth = np.linspace(gamma.ppf(0.01, alpha), gamma.ppf(0.99, alpha), 100)
+        y_smooth = gamma.pdf(x_smooth, alpha)
+        # now scaling
         x_smooth = scale_param * x_smooth
         y_smooth = y_smooth / scale_param
-        y_smooth = y_smooth/max(y_smooth)
+        y_smooth = y_smooth / max(y_smooth)
 
         payload = {"hist": hist, "bin_edges": bin_edges, "x_smooth": list(x_smooth), "y_smooth": list(y_smooth)}
         return payload
         # return {"hist": hours_on_campus_list}
 
 
-def scientific_round(num: int, keep: int)-> int:
+def scientific_round(num: int, keep: int) -> int:
     """
     takes a number, and returns it trimmed to the level of precision specified
     by `keep`. 0 keeps only the leading, 1 keeps the leading + 1 digit.
-    eg: scientific_round(123,1) -> 120 
+    eg: scientific_round(123,1) -> 120
     """
-    denom = 10**(len(str(num))-1)
-    result = round(num/denom, keep)*denom
+    denom = 10 ** (len(str(num)) - 1)
+    result = round(num / denom, keep) * denom
     return int(result)
+
 
 @app.get("/api/num_participants")
 def get_rough_num_participants() -> dict:
     """
-    gives us a some-what privacy preserving way of displaying the number of 
+    gives us a some-what privacy preserving way of displaying the number of
     participants in the safe blues experiment
 
     returns a dict representing 'roughly' the number of participants.
@@ -449,5 +227,5 @@ def get_rough_num_participants() -> dict:
         return {"num_participants": f"{num_participants}"}
 
 
-if __name__ == '__main__':
-    uvicorn.run('main:app', host="0.0.0.0", port=PORT, reload=True, debug=True)
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=PORT, reload=True, debug=True)
