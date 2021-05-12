@@ -104,7 +104,6 @@ def create_Participant2(participant: Participant2):
 
 class ExperimentData(BaseModel):
     participant_id: str
-    version_code: int
     statuses: list
 
 
@@ -134,7 +133,7 @@ def push_experiment_data(data: ExperimentData):
                 {
                     "participant_id": data.participant_id,
                     "status_id": status["status_id"],
-                    "version_code": data.version_code,
+                    "version_code": getattr(data, "version_code", None),
                     "date": time,
                     "truncated_entry_time": status["truncate_entry_time"],
                     "duration": duration,
