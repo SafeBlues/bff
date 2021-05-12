@@ -157,22 +157,19 @@ def get_stats_for_participant(participant_id: str) -> dict:
         payload = {"status": 400, "description": "participant_id does not exist"}
         return payload
     with engine.connect() as connection:
-        query = (
-            "SELECT SUM(" + CURRENT_DISPLAY_HOURS + ") as total_time_on_campus from experiment_data "
-            "where participant_id = %(participant_id)s"
-        )
-        result = connection.execute(query, {"participant_id": participant_id}).fetchone()["total_time_on_campus"]
-        hours_on_campus = float(result or 0)
-        query = (
-            "SELECT " + CURRENT_EXTRA_HOURS + " as hours from participants where participant_id = %(participant_id)s"
+        result = connection.execute(
+            "SELECT GREATEST(" + CURRENT_EXTRA_HOURS + " + total_hours, 0) AS hours FROM participants, "
+            "(SELECT SUM(" + CURRENT_DISPLAY_HOURS + ") AS total_hours FROM experiment_data "
+            "WHERE participant_id = %(participant_id)s) t "
+            "WHERE participants.participant_id = %(participant_id)s"
         )
         result = connection.execute(query, {"participant_id": participant_id}).fetchone()["hours"]
-        hours = float(result or 0)
-        logging.debug(f"participant {participant_id} has {hours_on_campus} + {hours} hours on campus")
+        hours = round(float(result or 0), 0)
+        logging.debug(f"participant {participant_id} has {hours} hours on campus")
         return {
             "participant_id": participant_id,
-            "total_hours_on_campus": round(hours_on_campus + hours, 0),
-            "eligible_hours": min(round(hours_on_campus + hours, 0), 200),
+            "total_hours_on_campus": hours,
+            "eligible_hours": min(hours, 200),
             "status": 200,
         }
 
@@ -194,11 +191,13 @@ def get_aggregate_statistics():
     someone loads up their stats.
     """
     with engine.connect() as connection:
-        query = """SELECT SUM(duration)
-                    FROM experiment_data
-                    GROUP BY participant_id;"""
-        result = connection.execute(query)
-        hours_on_campus_list = [int(num_15_min_intervals[0]) * 0.25 for num_15_min_intervals in result.fetchall()]
+        result = connection.execute(
+            "SELECT GREATEST(LEAST(" + CURRENT_EXTRA_HOURS + " + total_hours, 200), 0) AS hours FROM participants JOIN "
+            "(SELECT participant_id, SUM(" + CURRENT_DISPLAY_HOURS + ") AS total_hours FROM experiment_data "
+            "GROUP BY experiment_data.participant_id) t "
+            "ON participants.participant_id = t.participant_id"
+        )
+        hours_on_campus_list = [round(floar(num_15_min_intervals[0]), 0) for num_15_min_intervals in result.fetchall()]
         logging.debug(f"{hours_on_campus_list=}")
         # payload = {"hours_on_campus_list": hours_on_campus_list}
         # hours_on_campus = [6, 31.8, 9.2, 4.6]
