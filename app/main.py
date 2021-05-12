@@ -18,6 +18,7 @@ logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.DEBUG)
 # 1,2,3 for 1st,2nd,3rd phases
 CURRENT_PHASE = 1
 CURRENT_DISPLAY_HOURS = "display_hours_" + str(CURRENT_PHASE)
+CURRENT_EXTRA_HOURS = "extra_hours_" + str(CURRENT_PHASE)
 
 db_hostname = os.environ["HOST"]
 db_port = int(os.environ["DB_PORT"])
@@ -155,16 +156,23 @@ def get_stats_for_participant(participant_id: str) -> dict:
         payload = {"status": 400, "description": "participant_id does not exist"}
         return payload
     with engine.connect() as connection:
-        query = """SELECT SUM(duration) as total_time_on_campus from experiment_data
-                    where participant_id = %(participant_id)s
-                    """
+        query = (
+            "SELECT SUM(" + CURRENT_DISPLAY_HOURS + ") as total_time_on_campus from experiment_data"
+            "where participant_id = %(participant_id)s"
+        )
         result = connection.execute(query, {"participant_id": participant_id}).fetchone()["total_time_on_campus"]
-        if not result:
-            return {"participant_id": participant_id, "total_hours_on_campus": 0, "status": 200}
-        num_15_min_intervals = int(result)
-        logging.debug(f"participant {participant_id} has {num_15_min_intervals*0.25} hours on campus")
-        hours_on_campus = round(num_15_min_intervals * 0.25, 0)
-        return {"participant_id": participant_id, "total_hours_on_campus": hours_on_campus, "status": 200}
+        hours_on_campus = float(result or 0)
+        query = (
+            "SELECT " + CURRENT_EXTRA_HOURS + " as hours from participants where participant_id = %(participant_id)s"
+        )
+        result = connection.execute(query, {"participant_id": participant_id}).fetchone()["hours"]
+        hours = float(result or 0)
+        logging.debug(f"participant {participant_id} has {hours_on_campus} + {hours} hours on campus")
+        return {
+            "participant_id": participant_id,
+            "total_hours_on_campus": round(hours_on_campus + hours, 0),
+            "status": 200,
+        }
 
 
 # TODO add caching to this function, wit daily ttl
