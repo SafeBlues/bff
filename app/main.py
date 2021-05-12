@@ -40,6 +40,7 @@ engine = sqlalchemy.create_engine(
 
 origins = [
     "https://participant.safeblues.org",
+    "http://localhost:3000"
 ]
 
 app = FastAPI(title="Safe Blues Backend for frontend")
