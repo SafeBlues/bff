@@ -2,6 +2,7 @@ bcrypt==3.2.0
 black
 certifi==2020.12.5
 click==7.1.2
+cryptography
 email-validator==1.1.2
 fastapi==0.63.0
 h11==0.12.0

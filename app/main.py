@@ -172,6 +172,7 @@ def get_stats_for_participant(participant_id: str) -> dict:
         return {
             "participant_id": participant_id,
             "total_hours_on_campus": round(hours_on_campus + hours, 0),
+            "eligible_hours": min(round(hours_on_campus + hours, 0), 200),
             "status": 200,
         }
 
