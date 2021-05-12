@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import datetime
+from typing import Optional
 
 import numpy as np
 import sqlalchemy
