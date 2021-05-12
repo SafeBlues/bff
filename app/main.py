@@ -198,17 +198,6 @@ def get_aggregate_statistics():
         # return {"hist": hours_on_campus_list}
 
 
-def scientific_round(num: int, keep: int) -> int:
-    """
-    takes a number, and returns it trimmed to the level of precision specified
-    by `keep`. 0 keeps only the leading, 1 keeps the leading + 1 digit.
-    eg: scientific_round(123,1) -> 120
-    """
-    denom = 10 ** (len(str(num)) - 1)
-    result = round(num / denom, keep) * denom
-    return int(result)
-
-
 @app.get("/api/num_participants")
 def get_rough_num_participants() -> dict:
     """
