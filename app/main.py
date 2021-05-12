@@ -38,10 +38,7 @@ engine = sqlalchemy.create_engine(
     )
 )
 
-origins = [
-    "https://participant.safeblues.org",
-    "http://localhost:3000"
-]
+origins = ["https://participant.safeblues.org", "http://localhost:3000"]
 
 app = FastAPI(title="Safe Blues Backend for frontend")
 
@@ -69,7 +66,7 @@ class Participant2(BaseModel):
     participant_id: str
 
 
-@app.post("/v2/participants")
+@app.post("/v3/participants")
 def create_Participant2(participant: Participant2):
     if len(participant.participant_id) != 10:
         detail = [  # recreating fastAPI typing error for custom error
@@ -147,7 +144,7 @@ def push_experiment_data(data: ExperimentData):
         return {"status": 200}
 
 
-@app.get("/api/stats/{participant_id}")
+@app.get("/v3/stats/{participant_id}")
 def get_stats_for_participant(participant_id: str) -> dict:
     """
     returns the total number of hours that a participant has spent on campus
@@ -176,7 +173,7 @@ def get_stats_for_participant(participant_id: str) -> dict:
 
 
 # TODO add caching to this function, wit daily ttl
-@app.get("/api/stats")
+@app.get("/v3/stats")
 def get_aggregate_statistics():
     """
     Should be consumed by the https://participant.safeblues.org/stats page only.
@@ -225,7 +222,7 @@ def get_aggregate_statistics():
         # return {"hist": hours_on_campus_list}
 
 
-@app.get("/api/num_participants")
+@app.get("/v3/num_participants")
 def get_rough_num_participants() -> dict:
     """
     gives us a some-what privacy preserving way of displaying the number of
