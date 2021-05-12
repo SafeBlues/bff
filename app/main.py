@@ -160,11 +160,9 @@ def get_stats_for_participant(participant_id: str) -> dict:
         result = connection.execute(
             "SELECT GREATEST(" + CURRENT_EXTRA_HOURS + " + total_hours, 0) AS hours FROM participants, "
             "(SELECT SUM(" + CURRENT_DISPLAY_HOURS + ") AS total_hours FROM experiment_data "
-            "WHERE participant_id = %(participant_id1)s) t "
-            "WHERE participants.participant_id = %(participant_id2)s"
-        )
-        result = connection.execute(
-            query, {"participant_id1": participant_id, "participant_id2": participant_id}
+            "WHERE participant_id = %(participant_id)s) t "
+            "WHERE participants.participant_id = %(participant_id)s",
+            {"participant_id": participant_id},
         ).fetchone()["hours"]
         hours = round(float(result or 0), 0)
         logging.debug(f"participant {participant_id} has {hours} hours on campus")
