@@ -158,7 +158,7 @@ def get_stats_for_participant(participant_id: str) -> dict:
         return payload
     with engine.connect() as connection:
         query = (
-            "SELECT SUM(" + CURRENT_DISPLAY_HOURS + ") as total_time_on_campus from experiment_data"
+            "SELECT SUM(" + CURRENT_DISPLAY_HOURS + ") as total_time_on_campus from experiment_data "
             "where participant_id = %(participant_id)s"
         )
         result = connection.execute(query, {"participant_id": participant_id}).fetchone()["total_time_on_campus"]
