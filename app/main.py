@@ -17,9 +17,12 @@ logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.DEBUG)
 # which phase to cumulate hours into
 # 0 for off
 # 1,2,3 for 1st,2nd,3rd phases
-CURRENT_PHASE = 0
-CURRENT_DISPLAY_HOURS = "display_hours_" + str(CURRENT_PHASE)
-CURRENT_EXTRA_HOURS = "extra_hours_" + str(CURRENT_PHASE)
+CURRENT_READ_PHASE = 1
+CURRENT_READ_DISPLAY_HOURS = "display_hours_" + str(CURRENT_READ_PHASE)
+CURRENT_READ_EXTRA_HOURS = "extra_hours_" + str(CURRENT_READ_PHASE)
+CURRENT_WRITE_PHASE = 0
+CURRENT_WRITE_DISPLAY_HOURS = "display_hours_" + str(CURRENT_WRITE_PHASE)
+CURRENT_WRITE_EXTRA_HOURS = "extra_hours_" + str(CURRENT_WRITE_PHASE)
 
 db_hostname = os.environ["HOST"]
 db_port = int(os.environ["DB_PORT"])
@@ -122,10 +125,10 @@ def push_experiment_data(data: ExperimentData):
             display_hours = min(40, max(0, max(duration, count_active))) / 4
             query = (
                 "INSERT IGNORE INTO experiment_data (participant_id, version_code, status_id, date, truncated_entry_time, duration, count_active, "
-                + CURRENT_DISPLAY_HOURS
+                + CURRENT_WRITE_DISPLAY_HOURS
                 + ") "
                 "VALUES (%(participant_id)s, %(version_code)s, %(status_id)s, %(date)s, %(truncated_entry_time)s, %(duration)s, %(count_active)s, %("
-                + CURRENT_DISPLAY_HOURS
+                + CURRENT_WRITE_DISPLAY_HOURS
                 + ")s);"
             )
             result = connection.execute(
@@ -138,7 +141,7 @@ def push_experiment_data(data: ExperimentData):
                     "truncated_entry_time": status["truncate_entry_time"],
                     "duration": duration,
                     "count_active": count_active,
-                    CURRENT_DISPLAY_HOURS: display_hours,
+                    CURRENT_WRITE_DISPLAY_HOURS: display_hours,
                 },
             )
         return {"status": 200}
@@ -156,8 +159,8 @@ def get_stats_for_participant(participant_id: str) -> dict:
         return payload
     with engine.connect() as connection:
         result = connection.execute(
-            "SELECT GREATEST(" + CURRENT_EXTRA_HOURS + " + total_hours, 0) AS hours FROM participants, "
-            "(SELECT SUM(" + CURRENT_DISPLAY_HOURS + ") AS total_hours FROM experiment_data "
+            "SELECT GREATEST(" + CURRENT_READ_EXTRA_HOURS + " + total_hours, 0) AS hours FROM participants, "
+            "(SELECT SUM(" + CURRENT_READ_DISPLAY_HOURS + ") AS total_hours FROM experiment_data "
             "WHERE participant_id = %(participant_id)s) t "
             "WHERE participants.participant_id = %(participant_id)s",
             {"participant_id": participant_id},
@@ -190,8 +193,8 @@ def get_aggregate_statistics():
     """
     with engine.connect() as connection:
         result = connection.execute(
-            "SELECT GREATEST(LEAST(" + CURRENT_EXTRA_HOURS + " + total_hours, 200), 0) AS hours FROM participants JOIN "
-            "(SELECT participant_id, SUM(" + CURRENT_DISPLAY_HOURS + ") AS total_hours FROM experiment_data "
+            "SELECT GREATEST(LEAST(" + CURRENT_READ_EXTRA_HOURS + " + total_hours, 200), 0) AS hours FROM participants JOIN "
+            "(SELECT participant_id, SUM(" + CURRENT_READ_DISPLAY_HOURS + ") AS total_hours FROM experiment_data "
             "GROUP BY experiment_data.participant_id) t "
             "ON participants.participant_id = t.participant_id"
         )
