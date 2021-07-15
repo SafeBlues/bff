@@ -1,5 +1,6 @@
 import logging
 import os
+import random
 from datetime import datetime
 from typing import Optional
 
@@ -64,6 +65,16 @@ def check_if_participant_id_exists(participant_id):
         return participant_exists
 
 
+def check_if_referral_code_exists(referral_code):
+    with engine.connect() as connection:
+        query = """SELECT COUNT(1)
+                FROM participants
+                WHERE referral_code = %(referral_code)s;"""
+        result = connection.execute(query, {"referral_code": referral_code})
+        code_exists = bool(result.fetchone()["COUNT(1)"])
+        return code_exists
+
+
 class Participant2(BaseModel):
     email: EmailStr
     participant_id: str
@@ -83,10 +94,16 @@ def create_Participant2(participant: Participant2):
         raise HTTPException(status_code=422, detail=detail)
 
     if not check_if_participant_id_exists(participant.participant_id):
+        # Generate a (unique) referral code for this participant.
+        while True:
+            referral_code = str(random.randint(0, 9)).zfill(6)
+            if not check_if_referral_code_exists(referral_code):
+                break
+
         with engine.connect() as connection:
-            query = "INSERT INTO participants (email, participant_id, referrer) " "VALUES (%(email)s, %(participant_id)s, %(referrer)s);"
+            query = "INSERT INTO participants (email, participant_id, referral_code, referrer) " "VALUES (%(email)s, %(participant_id)s, %(referral_code)s, %(referrer)s);"
             result = connection.execute(
-                query, {"email": participant.email, "participant_id": participant.participant_id, "referrer": participant.referrer}
+                query, {"email": participant.email, "participant_id": participant.participant_id, "referral_code": referral_code, "referrer": participant.referrer}
             )
             # TODO check if the participant id already exists
             # TODO check for success
