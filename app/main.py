@@ -67,6 +67,7 @@ def check_if_participant_id_exists(participant_id):
 class Participant2(BaseModel):
     email: EmailStr
     participant_id: str
+    referrer: str
 
 
 @app.post("/v3/participants")
@@ -83,9 +84,9 @@ def create_Participant2(participant: Participant2):
 
     if not check_if_participant_id_exists(participant.participant_id):
         with engine.connect() as connection:
-            query = "INSERT INTO participants (email, participant_id) " "VALUES (%(email)s, %(participant_id)s);"
+            query = "INSERT INTO participants (email, participant_id, referrer) " "VALUES (%(email)s, %(participant_id)s, %(referrer)s);"
             result = connection.execute(
-                query, {"email": participant.email, "participant_id": participant.participant_id}
+                query, {"email": participant.email, "participant_id": participant.participant_id, "referrer": participant.referrer}
             )
             # TODO check if the participant id already exists
             # TODO check for success
