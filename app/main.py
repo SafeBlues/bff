@@ -265,5 +265,27 @@ def get_rough_num_participants() -> dict:
         return {"num_participants": f"{num_participants}"}
 
 
+@app.get("/v3/referral/{participant_id}")
+def get_referral_code(participant_id: str):
+    """
+    Gets a participant's referral code.
+    """
+    if not check_if_participant_id_exists(participant_id):
+        payload = {"status": 400, "description": "participant_id does not exist"}
+        return payload
+    
+    with engine.connect() as connection:
+        query = """SELECT referral_code
+                   FROM participants
+                   WHERE participant_id = %(participant_id)s;"""
+        result = connection.execute(query)
+        referral_code = result.fetchone()[0]
+        return {
+            "participant_id": participant_id,
+            "referral_code": referral_code,
+            "status": 200
+        }
+
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=PORT, reload=True, debug=True)
