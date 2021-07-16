@@ -75,6 +75,14 @@ def check_if_referral_code_exists(referral_code):
         return code_exists
 
 
+def generate_new_referral_code():
+    while True:
+        referral_code = str(random.randint(0, 9)).zfill(6)
+        if not check_if_referral_code_exists(referral_code):
+            break
+    return referral_code
+
+
 class Participant2(BaseModel):
     email: EmailStr
     participant_id: str
@@ -94,11 +102,7 @@ def create_Participant2(participant: Participant2):
         raise HTTPException(status_code=422, detail=detail)
 
     if not check_if_participant_id_exists(participant.participant_id):
-        # Generate a (unique) referral code for this participant.
-        while True:
-            referral_code = str(random.randint(0, 9)).zfill(6)
-            if not check_if_referral_code_exists(referral_code):
-                break
+        referral_code = generate_new_referral_code()
 
         with engine.connect() as connection:
             query = "INSERT INTO participants (email, participant_id, referral_code, referrer) " "VALUES (%(email)s, %(participant_id)s, %(referral_code)s, %(referrer)s);"
