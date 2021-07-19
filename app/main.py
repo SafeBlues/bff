@@ -17,10 +17,10 @@ logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.DEBUG)
 # which phase to cumulate hours into
 # 0 for off
 # 1,2,3 for 1st,2nd,3rd phases
-CURRENT_READ_PHASE = 1
+CURRENT_READ_PHASE = 2
 CURRENT_READ_DISPLAY_HOURS = "display_hours_" + str(CURRENT_READ_PHASE)
 CURRENT_READ_EXTRA_HOURS = "extra_hours_" + str(CURRENT_READ_PHASE)
-CURRENT_WRITE_PHASE = 0
+CURRENT_WRITE_PHASE = 2
 CURRENT_WRITE_DISPLAY_HOURS = "display_hours_" + str(CURRENT_WRITE_PHASE)
 CURRENT_WRITE_EXTRA_HOURS = "extra_hours_" + str(CURRENT_WRITE_PHASE)
 
