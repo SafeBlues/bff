@@ -277,7 +277,7 @@ def get_referral_code(participant_id: str):
     with engine.connect() as connection:
         query = """SELECT referral_code
                    FROM participants
-                   WHERE participant_id = %(participant_id)s;"""
+                   WHERE participant_id = '%(participant_id)s';"""
         result = connection.execute(query)
         referral_code = result.fetchone()[0]
         return {
