@@ -278,7 +278,7 @@ def get_referral_code(participant_id: str):
         query = """SELECT referral_code
                    FROM participants
                    WHERE participant_id = '%(participant_id)s';"""
-        result = connection.execute(query)
+        result = connection.execute(query, {"participant_id": participant_id})
         referral_code = result.fetchone()[0]
         return {
             "participant_id": participant_id,
