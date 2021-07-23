@@ -1,5 +1,6 @@
 import logging
 import os
+import random
 from datetime import datetime
 from typing import Optional
 
@@ -64,9 +65,28 @@ def check_if_participant_id_exists(participant_id):
         return participant_exists
 
 
+def check_if_referral_code_exists(referral_code):
+    with engine.connect() as connection:
+        query = """SELECT COUNT(1)
+                FROM participants
+                WHERE referral_code = %(referral_code)s;"""
+        result = connection.execute(query, {"referral_code": referral_code})
+        code_exists = bool(result.fetchone()["COUNT(1)"])
+        return code_exists
+
+
+def generate_new_referral_code():
+    while True:
+        referral_code = str(random.randint(0, 10**6-1)).zfill(6)
+        if not check_if_referral_code_exists(referral_code):
+            break
+    return referral_code
+
+
 class Participant2(BaseModel):
     email: EmailStr
     participant_id: str
+    referrer: str
 
 
 @app.post("/v3/participants")
@@ -82,10 +102,12 @@ def create_Participant2(participant: Participant2):
         raise HTTPException(status_code=422, detail=detail)
 
     if not check_if_participant_id_exists(participant.participant_id):
+        referral_code = generate_new_referral_code()
+
         with engine.connect() as connection:
-            query = "INSERT INTO participants (email, participant_id) " "VALUES (%(email)s, %(participant_id)s);"
+            query = "INSERT INTO participants (email, participant_id, referral_code, referrer) " "VALUES (%(email)s, %(participant_id)s, %(referral_code)s, %(referrer)s);"
             result = connection.execute(
-                query, {"email": participant.email, "participant_id": participant.participant_id}
+                query, {"email": participant.email, "participant_id": participant.participant_id, "referral_code": referral_code, "referrer": participant.referrer}
             )
             # TODO check if the participant id already exists
             # TODO check for success
@@ -241,6 +263,28 @@ def get_rough_num_participants() -> dict:
         num_participants = result.fetchone()[0]
         logging.debug(f"current number of participants: {num_participants}")
         return {"num_participants": f"{num_participants}"}
+
+
+@app.get("/v3/referral/{participant_id}")
+def get_referral_code(participant_id: str):
+    """
+    Gets a participant's referral code.
+    """
+    if not check_if_participant_id_exists(participant_id):
+        payload = {"status": 400, "description": "participant_id does not exist"}
+        return payload
+    
+    with engine.connect() as connection:
+        query = """SELECT referral_code
+                   FROM participants
+                   WHERE participant_id = %(participant_id)s;"""
+        result = connection.execute(query)
+        referral_code = result.fetchone()[0]
+        return {
+            "participant_id": participant_id,
+            "referral_code": referral_code,
+            "status": 200
+        }
 
 
 if __name__ == "__main__":
