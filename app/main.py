@@ -77,7 +77,7 @@ def check_if_referral_code_exists(referral_code):
 
 def generate_new_referral_code():
     while True:
-        referral_code = str(random.randint(0, 9)).zfill(6)
+        referral_code = str(random.randint(0, 10**6-1)).zfill(6)
         if not check_if_referral_code_exists(referral_code):
             break
     return referral_code
