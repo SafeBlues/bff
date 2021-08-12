@@ -218,7 +218,8 @@ def get_aggregate_statistics():
             "SELECT GREATEST(LEAST(" + CURRENT_READ_EXTRA_HOURS + " + total_hours, 200), 0) AS hours FROM participants JOIN "
             "(SELECT participant_id, SUM(" + CURRENT_READ_DISPLAY_HOURS + ") AS total_hours FROM experiment_data "
             "GROUP BY experiment_data.participant_id) t "
-            "ON participants.participant_id = t.participant_id"
+            "ON participants.participant_id = t.participant_id "
+            "WHERE (" + CURRENT_READ_EXTRA_HOURS + " + total_hours) > 0"
         )
         hours_on_campus_list = [round(float(num_15_min_intervals[0]), 0) for num_15_min_intervals in result.fetchall()]
         logging.debug(f"{hours_on_campus_list=}")
