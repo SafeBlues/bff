@@ -262,8 +262,19 @@ def get_rough_num_participants() -> dict:
                     """
         result = connection.execute(query)
         num_participants = result.fetchone()[0]
+
+        result = connection.execute(
+            "SELECT COUNT(DISTINCT participants.participant_id) FROM participants JOIN "
+            f"(SELECT participant_id, SUM({CURRENT_READ_DISPLAY_HOURS}) AS total_hours "
+            "FROM experiment_data GROUP BY experiment_data.participant_id ) t "
+            "ON participants.participant_id = t.participant_id "
+            f"WHERE ({CURRENT_READ_EXTRA_HOURS} + total_hours) > 0"
+        )
+        num_active = result.fetchone()[0]
+
         logging.debug(f"current number of participants: {num_participants}")
-        return {"num_participants": f"{num_participants}"}
+        logging.debug(f"current number of active participants: {num_active}")
+        return {"num_participants": f"{num_participants}", "num_active": f"{num_active}"}
 
 
 @app.get("/v3/referral/{participant_id}")
