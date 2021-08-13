@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Path, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pydantic.networks import EmailStr
-from scipy.stats import gamma
+from scipy.stats import gamma, gaussian_kde
 
 logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.DEBUG)
 
@@ -223,29 +223,18 @@ def get_aggregate_statistics():
         )
         hours_on_campus_list = [round(float(num_15_min_intervals[0]), 0) for num_15_min_intervals in result.fetchall()]
         logging.debug(f"{hours_on_campus_list=}")
-        # payload = {"hours_on_campus_list": hours_on_campus_list}
-        # hours_on_campus = [6, 31.8, 9.2, 4.6]
+
         hist, bin_edges = np.histogram(hours_on_campus_list, bins=15)
-        # payload = {"hist": hist, "bin_edges": bin_edges}
+
         hist = [round(i, 2) for i in hist.tolist()]
         bin_edges = [round(i, 2) for i in bin_edges.tolist()]
 
-        # For now a (two parameter) Gamma Distribution is fit
-        mean = np.mean(hours_on_campus_list)
-        var = np.var(hours_on_campus_list)
-        alpha = mean ** 2 / var  # gamma shape
-        scale_param = var / mean
-        # first the unscaled by mean version
-        x_smooth = np.linspace(gamma.ppf(0.01, alpha), gamma.ppf(0.99, alpha), 100)
-        y_smooth = gamma.pdf(x_smooth, alpha)
-        # now scaling
-        x_smooth = scale_param * x_smooth
-        y_smooth = y_smooth / scale_param
-        y_smooth = y_smooth / max(y_smooth)
+        kde = gaussian_kde(hours_on_campus_list)
+        x_smooth = np.linspace(0, max(hours_on_campus_list), 100)
+        y_smooth = kde(x_smooth)
 
         payload = {"hist": hist, "bin_edges": bin_edges, "x_smooth": list(x_smooth), "y_smooth": list(y_smooth)}
         return payload
-        # return {"hist": hours_on_campus_list}
 
 
 @app.get("/v3/num_participants")
