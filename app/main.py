@@ -199,9 +199,9 @@ def get_stats_for_participant(participant_id: str) -> dict:
             {"referral_code": result["referral_code"]}
         ).fetchone()["count"]
 
-        campus_hours = min(round(float(result["hours"] or 0), 0), 200.0)
+        campus_hours = round(float(result["hours"] or 0), 0)
         eligible_hours = (
-            campus_hours + min(campus_hours, 20)
+            min(campus_hours, 200) + min(campus_hours, 20)
             + 5.0 * int(result["referrer"] != "") * int(campus_hours >= 20)
             + 5.0 * min(count, 10)
         )
@@ -234,7 +234,7 @@ def get_aggregate_statistics():
     with engine.connect() as connection:
         result = connection.execute(
             "SELECT referral_code, referrer, "
-            "GREATEST(LEAST(" + CURRENT_READ_EXTRA_HOURS + " + total_hours, 200), 0) AS hours FROM participants JOIN "
+            "GREATEST(" + CURRENT_READ_EXTRA_HOURS + " + total_hours, 0) AS hours FROM participants JOIN "
             "(SELECT participant_id, SUM(" + CURRENT_READ_DISPLAY_HOURS + ") AS total_hours FROM experiment_data "
             "GROUP BY experiment_data.participant_id) t "
             "ON participants.participant_id = t.participant_id "
@@ -246,7 +246,7 @@ def get_aggregate_statistics():
 
         referrers = list(map(lambda row: row[1], filter(lambda row: row[2] >= 20, rows)))
         eligible_hours = [
-            x + min(x, 20.0)
+            min(x, 200.0) + min(x, 20.0)
             + 5.0 * min(referrers.count(rows[i][0]), 10) * int(x >= 20)
             + 5.0 * int(rows[i][1] != "")
             for i, x in enumerate(campus_hours)
