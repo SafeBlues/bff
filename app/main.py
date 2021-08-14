@@ -181,7 +181,7 @@ def get_stats_for_participant(participant_id: str) -> dict:
         return payload
     with engine.connect() as connection:
         result = connection.execute(
-            "SELECT referral_code, referrer "
+            "SELECT referral_code, referrer, "
             "GREATEST(" + CURRENT_READ_EXTRA_HOURS + " + total_hours, 0) AS hours FROM participants, "
             "(SELECT SUM(" + CURRENT_READ_DISPLAY_HOURS + ") AS total_hours FROM experiment_data "
             "WHERE participant_id = %(participant_id)s) t "
