@@ -215,25 +215,38 @@ def get_aggregate_statistics():
     """
     with engine.connect() as connection:
         result = connection.execute(
-            "SELECT GREATEST(LEAST(" + CURRENT_READ_EXTRA_HOURS + " + total_hours, 200), 0) AS hours FROM participants JOIN "
+            "SELECT referral_code, referrer, "
+            "GREATEST(LEAST(" + CURRENT_READ_EXTRA_HOURS + " + total_hours, 200), 0) AS hours FROM participants JOIN "
             "(SELECT participant_id, SUM(" + CURRENT_READ_DISPLAY_HOURS + ") AS total_hours FROM experiment_data "
             "GROUP BY experiment_data.participant_id) t "
             "ON participants.participant_id = t.participant_id "
             "WHERE (" + CURRENT_READ_EXTRA_HOURS + " + total_hours) > 0"
         )
-        hours_on_campus_list = [round(float(num_15_min_intervals[0]), 0) for num_15_min_intervals in result.fetchall()]
-        logging.debug(f"{hours_on_campus_list=}")
+        rows = result.fetchall()
 
-        hist, bin_edges = np.histogram(hours_on_campus_list, bins=15)
+        campus_hours = [round(float(row[2]), 0) for row in rows]
+
+        referrers = list(map(lambda row: row[1], filter(lambda row: row[2] >= 20, rows)))
+        eligible_hours = [
+            x + min(x, 20.0)
+            + 5.0 * min(referrers.count(rows[i][0]), 10)
+            + 5.0 * int(rows[i][1] != "")
+            for i, x in enumerate(campus_hours)
+        ]
+
+        hist, bin_edges = np.histogram(eligible_hours, bins=15)
 
         hist = [round(i, 2) for i in hist.tolist()]
         bin_edges = [round(i, 2) for i in bin_edges.tolist()]
-
-        kde = gaussian_kde(hours_on_campus_list)
-        x_smooth = np.linspace(0, max(hours_on_campus_list), 100)
+    
+        kde = gaussian_kde(eligible_hours)
+        x_smooth = np.linspace(0, max(eligible_hours), 100)
         y_smooth = kde(x_smooth)
 
-        payload = {"hist": hist, "bin_edges": bin_edges, "x_smooth": list(x_smooth), "y_smooth": list(y_smooth)}
+        payload = {
+            "hist": hist, "bin_edges": bin_edges,
+            "x_smooth": list(x_smooth), "y_smooth": list(y_smooth),
+        }
         return payload
 
 
