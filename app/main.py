@@ -181,18 +181,32 @@ def get_stats_for_participant(participant_id: str) -> dict:
         return payload
     with engine.connect() as connection:
         result = connection.execute(
-            "SELECT GREATEST(" + CURRENT_READ_EXTRA_HOURS + " + total_hours, 0) AS hours FROM participants, "
+            "SELECT referral_code, referrer "
+            "GREATEST(" + CURRENT_READ_EXTRA_HOURS + " + total_hours, 0) AS hours FROM participants, "
             "(SELECT SUM(" + CURRENT_READ_DISPLAY_HOURS + ") AS total_hours FROM experiment_data "
             "WHERE participant_id = %(participant_id)s) t "
             "WHERE participants.participant_id = %(participant_id)s",
             {"participant_id": participant_id},
-        ).fetchone()["hours"]
-        hours = round(float(result or 0), 0)
-        logging.debug(f"participant {participant_id} has {hours} hours on campus")
+        ).fetchone()
+
+        count = connection.execute(
+            "SELECT COUNT(*) AS count FROM participants JOIN "
+            "(SELECT participant_id, SUM(" + CURRENT_READ_DISPLAY_HOURS + ") AS total_hours FROM experiment_data "
+            "GROUP BY experiment_data.participant_id) t "
+            "ON participants.participant_id = t.participant_id "
+            "WHERE (" + CURRENT_READ_EXTRA_HOURS + " + total_hours) >= 20 "
+            "AND referrer = %(referral_code)s",
+            {"referral_code": result["referral_code"]}
+        ).fetchone()["count"]
+
+        campus_hours = min(round(float(result["hours"] or 0), 0), 200.0)
+        eligible_hours = campus_hours +  5.0 * int(result["referrer"] != "") + 5.0 * min(count, 10)
+
+        logging.debug(f"participant {participant_id} has {campus_hours} campus hours and {eligible_hours} eligible hours")
         return {
             "participant_id": participant_id,
-            "total_hours_on_campus": hours,
-            "eligible_hours": min(hours, 200),
+            "total_hours_on_campus": campus_hours,
+            "eligible_hours": eligible_hours,
             "status": 200,
         }
 
