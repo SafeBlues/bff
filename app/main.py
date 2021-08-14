@@ -200,7 +200,11 @@ def get_stats_for_participant(participant_id: str) -> dict:
         ).fetchone()["count"]
 
         campus_hours = min(round(float(result["hours"] or 0), 0), 200.0)
-        eligible_hours = campus_hours +  5.0 * int(result["referrer"] != "") + 5.0 * min(count, 10)
+        eligible_hours = (
+            campus_hours + min(campus_hours, 20)
+            + 5.0 * int(result["referrer"] != "") * int(campus_hours >= 20)
+            + 5.0 * min(count, 10)
+        )
 
         logging.debug(f"participant {participant_id} has {campus_hours} campus hours and {eligible_hours} eligible hours")
         return {
@@ -243,7 +247,7 @@ def get_aggregate_statistics():
         referrers = list(map(lambda row: row[1], filter(lambda row: row[2] >= 20, rows)))
         eligible_hours = [
             x + min(x, 20.0)
-            + 5.0 * min(referrers.count(rows[i][0]), 10)
+            + 5.0 * min(referrers.count(rows[i][0]), 10) * int(x >= 20)
             + 5.0 * int(rows[i][1] != "")
             for i, x in enumerate(campus_hours)
         ]
