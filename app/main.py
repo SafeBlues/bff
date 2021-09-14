@@ -202,8 +202,8 @@ def get_stats_for_participant(participant_id: str) -> dict:
         campus_hours = round(float(result["hours"] or 0), 0)
         eligible_hours = (
             min(campus_hours, 200) + min(campus_hours, 20)
-            + 5.0 * int(result["referrer"] != "") * int(campus_hours >= 20)
-            + 5.0 * min(count, 10)
+            + 5.0 * int(result["referrer"] != "")
+            + 5.0 * min(count, 10) * int(campus_hours >= 20)
         )
 
         logging.debug(f"participant {participant_id} has {campus_hours} campus hours and {eligible_hours} eligible hours")
@@ -256,7 +256,7 @@ def get_aggregate_statistics():
 
         hist = [round(i, 2) for i in hist.tolist()]
         bin_edges = [round(i, 2) for i in bin_edges.tolist()]
-    
+
         kde = gaussian_kde(eligible_hours)
         x_smooth = np.linspace(0, max(eligible_hours), 100)
         y_smooth = kde(x_smooth)
