@@ -21,7 +21,7 @@ logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.DEBUG)
 CURRENT_READ_PHASE = 2
 CURRENT_READ_DISPLAY_HOURS = "display_hours_" + str(CURRENT_READ_PHASE)
 CURRENT_READ_EXTRA_HOURS = "extra_hours_" + str(CURRENT_READ_PHASE)
-CURRENT_WRITE_PHASE = 2
+CURRENT_WRITE_PHASE = 3
 CURRENT_WRITE_DISPLAY_HOURS = "display_hours_" + str(CURRENT_WRITE_PHASE)
 CURRENT_WRITE_EXTRA_HOURS = "extra_hours_" + str(CURRENT_WRITE_PHASE)
 
